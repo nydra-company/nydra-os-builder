@@ -193,7 +193,7 @@ EOF
 
 chmod +x config/includes.chroot/etc/skel/Desktop/*.desktop
 
-# Configure Calamares installer environment
+# Configure Calamares installer environment & slideshow
 echo "[INFO] Configuring Calamares system installer branding..."
 cat << 'EOF' > config/includes.chroot/etc/calamares/branding/nydra/branding.desc
 ---
@@ -217,11 +217,32 @@ images:
     productLogo:         "/usr/share/pixmaps/nydra-logo.png"
     productIcon:         "/usr/share/pixmaps/nydra-logo.png"
 
+slideshow:               "show.qml"
+slideshowAPI:            2
+
 style:
    SidebarBackground:    "#3d3b3a"
    SidebarText:          "#ffffff"
    SidebarTextSelect:    "#ffffff"
    SidebarTextHighlight: "#ffffff"
+EOF
+
+cat << 'EOF' > config/includes.chroot/etc/calamares/branding/nydra/show.qml
+import QtQuick 2.0
+import calamares.slideshow 1.0
+
+Presentation {
+    id: presentation
+
+    Slide {
+        Text {
+            anchors.centerIn: parent
+            text: "Welcome to Nydra OS 1.0"
+            font.pixelSize: 24
+            color: "#ffffff"
+        }
+    }
+}
 EOF
 
 cat << 'EOF' > config/includes.chroot/etc/calamares/settings.conf
@@ -230,8 +251,8 @@ modules-search: [ local ]
 
 instances:
 - id:       nydra
-  module:   branding
-  config:   branding.desc
+  module:    branding
+  config:    branding.desc
 
 sequence:
 - show:
@@ -282,6 +303,8 @@ dconf-editor
 # Live System & Installer Infrastructure
 calamares
 calamares-settings-debian
+qml-module-qtquick2
+qml-module-qtquick-controls
 squashfs-tools
 live-boot
 live-config
