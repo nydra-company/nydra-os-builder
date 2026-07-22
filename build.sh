@@ -2,7 +2,7 @@
 # ==============================================================================
 # Nydra OS 1.0 - Automated Live-Build System
 # Copyright (c) Nydra Company
-# Target Base: Debian x86_64
+# Target Base: Debian x86_64 (Bookworm)
 # ==============================================================================
 
 set -e
@@ -43,6 +43,7 @@ mkdir -p config/includes.chroot/usr/share/backgrounds/
 mkdir -p config/includes.chroot/usr/share/pixmaps/
 mkdir -p config/includes.chroot/usr/share/themes/
 mkdir -p config/includes.chroot/usr/share/icons/
+mkdir -p config/includes.chroot/usr/share/gnome-shell/extensions/
 mkdir -p config/includes.chroot/usr/share/plymouth/themes/nydra/
 mkdir -p config/includes.chroot/etc/calamares/branding/nydra/
 mkdir -p config/includes.chroot/etc/calamares/modules/
@@ -91,7 +92,7 @@ cp -r "$TMP_DIR/numix-circle/Numix-Circle" config/includes.chroot/usr/share/icon
 
 rm -rf "$TMP_DIR"
 
-# Configure default system theme via dconf overrides
+# Configure default system theme & extensions via dconf overrides
 echo "[INFO] Applying global dconf desktop configurations..."
 cat << 'EOF' > config/includes.chroot/etc/dconf/profile/user
 user-db:user
@@ -117,7 +118,7 @@ picture-uri='file:///usr/share/backgrounds/nydra-wallpaper.jpg'
 theme='Obsidian-2-Aqua'
 
 [org/gnome/shell]
-enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'arcmenu@arcmenu.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com', 'ubuntu-appindicators@ubuntu.com']
+enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'arcmenu@arcmenu.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com']
 EOF
 
 # Inject custom color schemes into GTK definitions
@@ -288,7 +289,7 @@ branding: nydra
 prompt-at-end: true
 EOF
 
-# Define target package manifests
+# Define target package manifests (Safe Debian Bookworm Packages ONLY)
 echo "[INFO] Generating system package manifest..."
 cat << 'EOF' > config/package-lists/nydra.list.chroot
 # Core Desktop System
@@ -303,16 +304,9 @@ gtk2-engines-pixbuf
 dconf-cli
 dconf-editor
 
-# GNOME Extensions Packages
+# GNOME Base Utils
 gnome-shell-extensions
-gnome-shell-extension-dashtodock
-gnome-shell-extension-blur-my-shell
-gnome-shell-extension-arc-menu
-gnome-shell-extension-gsconnect
-gnome-shell-extension-desktop-icons-ng
-gnome-shell-extension-appindicator
-gnome-shell-extension-gpaste
-gnome-shell-extension-prefs
+gnome-tweaks
 
 # Live System & Installer Infrastructure
 calamares
@@ -331,7 +325,6 @@ grub-common
 grub-pc-bin
 grub-efi-amd64-bin
 efibootmgr
-gnome-tweaks
 
 # User Utilities
 firefox-esr
@@ -349,7 +342,7 @@ firmware-realtek
 firmware-iwlwifi
 firmware-atheros
 
-# System Tooling
+# System Tooling & Extension Dependencies
 sudo
 git
 curl
@@ -358,13 +351,65 @@ flatpak
 p7zip-full
 unzip
 neofetch
+gettext
+make
 EOF
 
-# System initialization hooks inside chroot
+# System initialization hooks inside chroot (Direct extension fetching)
 echo "[INFO] Creating post-install chroot setup hooks..."
 cat << 'EOF' > config/hooks/live/0090-nydra-system-setup.hook.chroot
 #!/bin/sh
 set -e
+
+EXT_DIR="/usr/share/gnome-shell/extensions"
+mkdir -p "$EXT_DIR"
+TMP_BUILD=$(mktemp -d)
+
+# 1. Blur My Shell
+if [ ! -d "$EXT_DIR/blur-my-shell@aunetx" ]; then
+    git clone --depth 1 https://github.com/aunetx/blur-my-shell.git "$TMP_BUILD/bms" || true
+    if [ -d "$TMP_BUILD/bms/blur-my-shell@aunetx" ]; then
+        cp -r "$TMP_BUILD/bms/blur-my-shell@aunetx" "$EXT_DIR/"
+    fi
+fi
+
+# 2. Dash to Dock
+if [ ! -d "$EXT_DIR/dash-to-dock@micxgx.gmail.com" ]; then
+    git clone --depth 1 https://github.com/micheleg/dash-to-dock.git "$TMP_BUILD/dtd" || true
+    if [ -d "$TMP_BUILD/dtd" ]; then
+        cd "$TMP_BUILD/dtd"
+        make install DESTDIR=/usr/share/gnome-shell/extensions || true
+        cd -
+    fi
+fi
+
+# 3. Arc Menu
+if [ ! -d "$EXT_DIR/arcmenu@arcmenu.com" ]; then
+    git clone --depth 1 https://gitlab.com/arcmenu/ArcMenu.git "$TMP_BUILD/arcmenu" || true
+    if [ -d "$TMP_BUILD/arcmenu" ]; then
+        cd "$TMP_BUILD/arcmenu"
+        make install DESTDIR=/usr/share/gnome-shell/extensions || true
+        cd -
+    fi
+fi
+
+# 4. GSConnect
+if [ ! -d "$EXT_DIR/gsconnect@andyholmes.github.io" ]; then
+    git clone --depth 1 https://github.com/GSConnect/gnome-shell-extension-gsconnect.git "$TMP_BUILD/gsconnect" || true
+    if [ -d "$TMP_BUILD/gsconnect/_build/gsconnect@andyholmes.github.io" ]; then
+        cp -r "$TMP_BUILD/gsconnect/_build/gsconnect@andyholmes.github.io" "$EXT_DIR/"
+    fi
+fi
+
+# 5. Desktop Icons NG (DING)
+if [ ! -d "$EXT_DIR/ding@rastersoft.com" ]; then
+    git clone --depth 1 https://gitlab.com/rastersoft/desktop-icons-ng.git "$TMP_BUILD/ding" || true
+    if [ -d "$TMP_BUILD/ding/ding@rastersoft.com" ]; then
+        cp -r "$TMP_BUILD/ding/ding@rastersoft.com" "$EXT_DIR/"
+    fi
+fi
+
+rm -rf "$TMP_BUILD"
 
 # Update dconf database for theme and extensions
 dconf update || true
