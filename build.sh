@@ -91,8 +91,8 @@ cp -r "$TMP_DIR/numix-circle/Numix-Circle" config/includes.chroot/usr/share/icon
 
 rm -rf "$TMP_DIR"
 
-# Configure default system theme via dconf overrides
-echo "[INFO] Applying global dconf desktop configurations..."
+# Configure default system theme & GNOME Extensions via dconf overrides
+echo "[INFO] Applying global dconf desktop configurations & enabling extensions..."
 cat << 'EOF' > config/includes.chroot/etc/dconf/profile/user
 user-db:user
 system-db:local
@@ -115,6 +115,9 @@ picture-uri='file:///usr/share/backgrounds/nydra-wallpaper.jpg'
 
 [org/gnome/desktop/wm/preferences]
 theme='Obsidian-2-Aqua'
+
+[org/gnome/shell]
+enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'arcmenu@arcmenu.com', 'Vitals@CoreCoding.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com', 'blur-my-shell@aunetx']
 EOF
 
 # Inject custom color schemes into GTK definitions
@@ -300,6 +303,15 @@ gtk2-engines-pixbuf
 dconf-cli
 dconf-editor
 
+# GNOME Extensions Packages
+gnome-shell-extensions
+gnome-shell-extension-dash-to-dock
+gnome-shell-extension-arc-menu
+gnome-shell-extension-vitals
+gnome-shell-extension-gsconnect
+gnome-shell-extension-desktop-icons-ng
+gnome-shell-extension-blur-my-shell
+
 # Live System & Installer Infrastructure
 calamares
 calamares-settings-debian
@@ -352,9 +364,13 @@ cat << 'EOF' > config/hooks/live/0090-nydra-system-setup.hook.chroot
 #!/bin/sh
 set -e
 
+# Update dconf database for theme and extensions
 dconf update || true
+
+# Enable default plymouth theme
 plymouth-set-default-theme -R nydra || true
 
+# Setup live user
 useradd -m -s /bin/bash -g sudo Nydra || true
 echo "Nydra:nydra" | chpasswd
 
