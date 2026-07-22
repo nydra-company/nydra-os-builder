@@ -2,7 +2,7 @@
 # ==============================================================================
 # Nydra OS 1.0 - Automated Live-Build System
 # Copyright (c) Nydra Company
-# Target Base: Debian 12 (Bookworm) x86_64
+# Target Base: Debian x86_64
 # ==============================================================================
 
 set -e
@@ -56,7 +56,7 @@ mkdir -p config/hooks/live/
 echo "[INFO] Writing system release metadata..."
 cat << 'EOF' > config/includes.chroot/etc/os-release
 NAME="Nydra OS"
-VERSION="1.0 (Bookworm Base)"
+VERSION="1.0"
 ID=nydra
 ID_LIKE=debian
 PRETTY_NAME="Nydra OS 1.0"
@@ -91,8 +91,8 @@ cp -r "$TMP_DIR/numix-circle/Numix-Circle" config/includes.chroot/usr/share/icon
 
 rm -rf "$TMP_DIR"
 
-# Configure default system theme & GNOME Extensions via dconf overrides
-echo "[INFO] Applying global dconf desktop configurations & enabling extensions..."
+# Configure default system theme via dconf overrides
+echo "[INFO] Applying global dconf desktop configurations..."
 cat << 'EOF' > config/includes.chroot/etc/dconf/profile/user
 user-db:user
 system-db:local
@@ -117,7 +117,7 @@ picture-uri='file:///usr/share/backgrounds/nydra-wallpaper.jpg'
 theme='Obsidian-2-Aqua'
 
 [org/gnome/shell]
-enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'arcmenu@arcmenu.com', 'Vitals@CoreCoding.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com', 'blur-my-shell@aunetx']
+enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'arcmenu@arcmenu.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com', 'ubuntu-appindicators@ubuntu.com']
 EOF
 
 # Inject custom color schemes into GTK definitions
@@ -305,12 +305,14 @@ dconf-editor
 
 # GNOME Extensions Packages
 gnome-shell-extensions
-gnome-shell-extension-dash-to-dock
+gnome-shell-extension-dashtodock
+gnome-shell-extension-blur-my-shell
 gnome-shell-extension-arc-menu
-gnome-shell-extension-vitals
 gnome-shell-extension-gsconnect
 gnome-shell-extension-desktop-icons-ng
-gnome-shell-extension-blur-my-shell
+gnome-shell-extension-appindicator
+gnome-shell-extension-gpaste
+gnome-shell-extension-prefs
 
 # Live System & Installer Infrastructure
 calamares
