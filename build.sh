@@ -69,7 +69,7 @@ EOF
 
 # Fetch official branding assets
 echo "[INFO] Downloading official branding assets..."
-wget -q -O config/includes.chroot/usr/share/backgrounds/nydra-wallpaper.jpg "https://t3.ftcdn.net/jpg/15/42/32/32/360_F_1542323292_vpxI2BypeFHgSZUvuSRlJLACFn0yzp6d.jpg"
+wget -q -O config/includes.chroot/usr/share/backgrounds/nydra-wallpaper.jpg "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/expanse.jpg"
 wget -q -O config/includes.chroot/usr/share/pixmaps/nydra-logo.png "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/Nydra-circle.png"
 cp config/includes.chroot/usr/share/pixmaps/nydra-logo.png config/includes.chroot/usr/share/plymouth/themes/nydra/nydra-logo.png
 
