@@ -70,9 +70,9 @@ EOF
 
 # Fetch official branding assets
 echo "[INFO] Downloading official branding assets..."
-wget -q -O config/includes.chroot/usr/share/backgrounds/nydra-wallpaper.jpg "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/expanse.jpg"
-wget -q -O config/includes.chroot/usr/share/pixmaps/nydra-logo.png "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/Nydra-circle.png"
-cp config/includes.chroot/usr/share/pixmaps/nydra-logo.png config/includes.chroot/usr/share/plymouth/themes/nydra/nydra-logo.png
+wget -q -O config/includes.chroot/usr/share/backgrounds/nydra-wallpaper.jpg "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/expanse.jpg" || true
+wget -q -O config/includes.chroot/usr/share/pixmaps/nydra-logo.png "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/Nydra-circle.png" || true
+cp config/includes.chroot/usr/share/pixmaps/nydra-logo.png config/includes.chroot/usr/share/plymouth/themes/nydra/nydra-logo.png || true
 
 # Fetch desktop themes and icon sets
 echo "[INFO] Fetching GTK theme and icon resources..."
@@ -85,10 +85,10 @@ elif [ -d "$TMP_DIR/obsidian" ]; then
     cp -r "$TMP_DIR/obsidian" config/includes.chroot/usr/share/themes/Obsidian-2-Aqua
 fi
 
-git clone --depth 1 https://github.com/numixproject/numix-icon-theme.git "$TMP_DIR/numix"
-git clone --depth 1 https://github.com/numixproject/numix-icon-theme-circle.git "$TMP_DIR/numix-circle"
-cp -r "$TMP_DIR/numix/Numix" config/includes.chroot/usr/share/icons/
-cp -r "$TMP_DIR/numix-circle/Numix-Circle" config/includes.chroot/usr/share/icons/
+git clone --depth 1 https://github.com/numixproject/numix-icon-theme.git "$TMP_DIR/numix" || true
+git clone --depth 1 https://github.com/numixproject/numix-icon-theme-circle.git "$TMP_DIR/numix-circle" || true
+[ -d "$TMP_DIR/numix/Numix" ] && cp -r "$TMP_DIR/numix/Numix" config/includes.chroot/usr/share/icons/
+[ -d "$TMP_DIR/numix-circle/Numix-Circle" ] && cp -r "$TMP_DIR/numix-circle/Numix-Circle" config/includes.chroot/usr/share/icons/
 
 rm -rf "$TMP_DIR"
 
@@ -195,8 +195,6 @@ URL=https://nydra-company.github.io/nydra-web/
 Icon=/usr/share/pixmaps/nydra-logo.png
 EOF
 
-chmod +x config/includes.chroot/etc/skel/Desktop/*.desktop
-
 # Configure Calamares installer environment & slideshow
 echo "[INFO] Configuring Calamares system installer branding..."
 cat << 'EOF' > config/includes.chroot/etc/calamares/branding/nydra/branding.desc
@@ -289,7 +287,7 @@ branding: nydra
 prompt-at-end: true
 EOF
 
-# Define target package manifests (Safe Debian Bookworm Packages ONLY)
+# Define target package manifests
 echo "[INFO] Generating system package manifest..."
 cat << 'EOF' > config/package-lists/nydra.list.chroot
 # Core Desktop System
@@ -342,7 +340,7 @@ firmware-realtek
 firmware-iwlwifi
 firmware-atheros
 
-# System Tooling & Extension Dependencies
+# System Tooling & Extension Build Dependencies
 sudo
 git
 curl
@@ -353,9 +351,14 @@ unzip
 neofetch
 gettext
 make
+meson
+ninja-build
+gettext
+sassc
+libglib2.0-dev
 EOF
 
-# System initialization hooks inside chroot (Direct extension fetching)
+# System initialization hooks inside chroot
 echo "[INFO] Creating post-install chroot setup hooks..."
 cat << 'EOF' > config/hooks/live/0090-nydra-system-setup.hook.chroot
 #!/bin/sh
@@ -366,63 +369,49 @@ mkdir -p "$EXT_DIR"
 TMP_BUILD=$(mktemp -d)
 
 # 1. Blur My Shell
-if [ ! -d "$EXT_DIR/blur-my-shell@aunetx" ]; then
-    git clone --depth 1 https://github.com/aunetx/blur-my-shell.git "$TMP_BUILD/bms" || true
-    if [ -d "$TMP_BUILD/bms/blur-my-shell@aunetx" ]; then
-        cp -r "$TMP_BUILD/bms/blur-my-shell@aunetx" "$EXT_DIR/"
-    fi
+git clone --depth 1 https://github.com/aunetx/blur-my-shell.git "$TMP_BUILD/bms" || true
+if [ -d "$TMP_BUILD/bms/blur-my-shell@aunetx" ]; then
+    cp -r "$TMP_BUILD/bms/blur-my-shell@aunetx" "$EXT_DIR/"
 fi
 
 # 2. Dash to Dock
-if [ ! -d "$EXT_DIR/dash-to-dock@micxgx.gmail.com" ]; then
-    git clone --depth 1 https://github.com/micheleg/dash-to-dock.git "$TMP_BUILD/dtd" || true
-    if [ -d "$TMP_BUILD/dtd" ]; then
-        cd "$TMP_BUILD/dtd"
-        make install DESTDIR=/usr/share/gnome-shell/extensions || true
-        cd -
-    fi
+git clone --depth 1 https://github.com/micheleg/dash-to-dock.git "$TMP_BUILD/dtd" || true
+if [ -d "$TMP_BUILD/dtd" ]; then
+    cp -r "$TMP_BUILD/dtd" "$EXT_DIR/dash-to-dock@micxgx.gmail.com"
 fi
 
 # 3. Arc Menu
-if [ ! -d "$EXT_DIR/arcmenu@arcmenu.com" ]; then
-    git clone --depth 1 https://gitlab.com/arcmenu/ArcMenu.git "$TMP_BUILD/arcmenu" || true
-    if [ -d "$TMP_BUILD/arcmenu" ]; then
-        cd "$TMP_BUILD/arcmenu"
-        make install DESTDIR=/usr/share/gnome-shell/extensions || true
-        cd -
-    fi
+git clone --depth 1 https://gitlab.com/arcmenu/ArcMenu.git "$TMP_BUILD/arcmenu" || true
+if [ -d "$TMP_BUILD/arcmenu" ]; then
+    cp -r "$TMP_BUILD/arcmenu" "$EXT_DIR/arcmenu@arcmenu.com"
 fi
 
 # 4. GSConnect
-if [ ! -d "$EXT_DIR/gsconnect@andyholmes.github.io" ]; then
-    git clone --depth 1 https://github.com/GSConnect/gnome-shell-extension-gsconnect.git "$TMP_BUILD/gsconnect" || true
-    if [ -d "$TMP_BUILD/gsconnect/_build/gsconnect@andyholmes.github.io" ]; then
-        cp -r "$TMP_BUILD/gsconnect/_build/gsconnect@andyholmes.github.io" "$EXT_DIR/"
-    fi
+git clone --depth 1 https://github.com/GSConnect/gnome-shell-extension-gsconnect.git "$TMP_BUILD/gsconnect" || true
+if [ -d "$TMP_BUILD/gsconnect" ]; then
+    cp -r "$TMP_BUILD/gsconnect" "$EXT_DIR/gsconnect@andyholmes.github.io"
 fi
 
 # 5. Desktop Icons NG (DING)
-if [ ! -d "$EXT_DIR/ding@rastersoft.com" ]; then
-    git clone --depth 1 https://gitlab.com/rastersoft/desktop-icons-ng.git "$TMP_BUILD/ding" || true
-    if [ -d "$TMP_BUILD/ding/ding@rastersoft.com" ]; then
-        cp -r "$TMP_BUILD/ding/ding@rastersoft.com" "$EXT_DIR/"
-    fi
+git clone --depth 1 https://gitlab.com/rastersoft/desktop-icons-ng.git "$TMP_BUILD/ding" || true
+if [ -d "$TMP_BUILD/ding/ding@rastersoft.com" ]; then
+    cp -r "$TMP_BUILD/ding/ding@rastersoft.com" "$EXT_DIR/"
 fi
 
 rm -rf "$TMP_BUILD"
 
-# Update dconf database for theme and extensions
+# Update dconf database
 dconf update || true
 
-# Enable default plymouth theme
+# Set Plymouth Theme
 plymouth-set-default-theme -R nydra || true
 
-# Setup live user
-useradd -m -s /bin/bash -g sudo Nydra || true
-echo "Nydra:nydra" | chpasswd
+# Compile GSettings Schemas
+glib-compile-schemas /usr/share/glib-2.0/schemas || true
 
+# Permissions fix for Desktop
 chmod +x /etc/skel/Desktop/*.desktop || true
-glib-compile-schemas /usr/share/glib-2.0/schemas
+
 EOF
 
 chmod +x config/hooks/live/0090-nydra-system-setup.hook.chroot
