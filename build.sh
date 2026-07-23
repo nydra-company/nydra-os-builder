@@ -62,10 +62,10 @@ VERSION="1.0"
 ID=nydra
 ID_LIKE=debian
 PRETTY_NAME="Nydra OS 1.0"
-HOME_URL="https://nydra-company.github.io/nydra-web/"
-SUPPORT_URL="https://nydra-company.github.io/nydra-web/"
+HOME_URL="https://nydra.cc/"
+SUPPORT_URL="https://nydra.cc/"
 BUG_REPORT_URL="https://github.com/nydra-company"
-PRIVACY_POLICY_URL="https://nydra-company.github.io/nydra-web/"
+PRIVACY_POLICY_URL="https://nydra.cc/"
 BUILD_ID="2026.07"
 EOF
 
@@ -140,7 +140,7 @@ class WelcomeWindow(Adw.ApplicationWindow):
         grid.set_margin_top(16)
 
         btn_web = Gtk.Button(label="🌐 Visit Website")
-        btn_web.connect("clicked", lambda x: subprocess.Popen(["xdg-open", "https://nydra-company.github.io/nydra-web/"]))
+        btn_web.connect("clicked", lambda x: subprocess.Popen(["xdg-open", "https://nydra.cc/"]))
         grid.attach(btn_web, 0, 0, 1, 1)
 
         btn_settings = Gtk.Button(label="⚙️ System Settings")
@@ -213,11 +213,11 @@ cat << 'EOF' > config/includes.chroot/etc/firefox/policies/policies.json
 {
   "policies": {
     "Homepage": {
-      "URL": "https://duckduckgo.com/",
+      "URL": "https://nydra.cc/",
       "Locked": false,
       "StartPage": "homepage"
     },
-    "NewTabURL": "https://duckduckgo.com/",
+    "NewTabURL": "https://nydra.cc/",
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
     "DontCheckDefaultBrowser": true,
@@ -343,7 +343,7 @@ cat << 'EOF' > config/includes.chroot/etc/skel/Desktop/nydra-website.desktop
 [Desktop Entry]
 Type=Link
 Name=Nydra Website
-URL=https://nydra-company.github.io/nydra-web/
+URL=https://nydra.cc/
 Icon=/usr/share/pixmaps/nydra-logo.png
 EOF
 
@@ -367,13 +367,13 @@ strings:
     shortVersionedName:  Nydra 1.0
     sidebar:             Nydra OS
     navigation:          Installer
-    supportUrl:          "https://nydra-company.github.io/nydra-web/"
+    supportUrl:          "https://nydra.cc/"
 
 images:
-    productLogo:         "/usr/share/pixmaps/nydra-logo.png"
-    productIcon:         "/usr/share/pixmaps/nydra-logo.png"
+    productLogo:          "/usr/share/pixmaps/nydra-logo.png"
+    productIcon:          "/usr/share/pixmaps/nydra-logo.png"
 
-slideshow:               "show.qml"
+slideshow:                "show.qml"
 slideshowAPI:            2
 
 style:
@@ -430,7 +430,7 @@ cat << 'EOF' > config/includes.chroot/etc/calamares/settings.conf
 modules-search: [ local ]
 
 instances:
-- id:       nydra
+- id:        nydra
   module:    branding
   config:    branding.desc
 
