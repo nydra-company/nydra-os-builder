@@ -1,44 +1,45 @@
 #!/bin/bash
 # ==============================================================================
-# Nydra OS 1.0 - Automated Live-Build System
+# Nydra OS 1.0 - Production-Grade Live-Build System (All-In-One Fix)
 # Copyright (c) Nydra Company
 # Target Base: Debian x86_64 (Bookworm)
 # ==============================================================================
 
 set -e
 
-# Ensure the script is executed with root privileges
+# Ensure root execution
 if [ "$EUID" -ne 0 ]; then
     echo "[ERROR] This script must be run as root (use: sudo ./build.sh)"
     exit 1
 fi
 
-echo "[INFO] Starting Nydra OS build process..."
+echo "[INFO] Starting Nydra OS hardened build process..."
 
-# Define build environment
+# Build environment setup
 BUILD_DIR="nydra-os"
 mkdir -p "$BUILD_DIR" && cd "$BUILD_DIR"
 
-# Clean previous build artifacts
 echo "[INFO] Cleaning previous live-build state..."
 lb clean --purge || true
 
-# Configure live-build framework
-echo "[INFO] Configuring live-build architecture and boot parameters..."
+echo "[INFO] Configuring live-build parameters..."
 lb config \
   --distribution bookworm \
   --architectures amd64 \
   --binary-images iso-hybrid \
   --archive-areas "main contrib non-free non-free-firmware" \
-  --bootappend-live "boot=live components quiet splash username=Nydra hostname=nydra-os"
+  --bootappend-live "boot=live components quiet splash username=Nydra user-fullname=Nydra hostname=nydra-os"
 
-# Create root filesystem directory structure
-echo "[INFO] Initializing system directory structure..."
-mkdir -p config/includes.chroot/etc/
+echo "[INFO] Creating directory tree..."
+mkdir -p config/includes.chroot/etc/firefox/policies/
 mkdir -p config/includes.chroot/etc/sudoers.d/
+mkdir -p config/includes.chroot/etc/plymouth/
 mkdir -p config/includes.chroot/etc/skel/Desktop/
+mkdir -p config/includes.chroot/etc/skel/.config/autostart/
 mkdir -p config/includes.chroot/etc/skel/.config/gtk-3.0/
 mkdir -p config/includes.chroot/etc/skel/.config/gtk-4.0/
+mkdir -p config/includes.chroot/usr/bin/
+mkdir -p config/includes.chroot/usr/share/applications/
 mkdir -p config/includes.chroot/usr/share/backgrounds/
 mkdir -p config/includes.chroot/usr/share/pixmaps/
 mkdir -p config/includes.chroot/usr/share/themes/
@@ -53,8 +54,8 @@ mkdir -p config/includes.chroot/etc/dconf/profile/
 mkdir -p config/package-lists/
 mkdir -p config/hooks/live/
 
-# Configure OS release parameters
-echo "[INFO] Writing system release metadata..."
+# OS Metadata
+echo "[INFO] Writing OS release information..."
 cat << 'EOF' > config/includes.chroot/etc/os-release
 NAME="Nydra OS"
 VERSION="1.0"
@@ -68,14 +69,14 @@ PRIVACY_POLICY_URL="https://nydra-company.github.io/nydra-web/"
 BUILD_ID="2026.07"
 EOF
 
-# Fetch official branding assets
-echo "[INFO] Downloading official branding assets..."
+# Assets & Branding Downloads
+echo "[INFO] Downloading assets..."
 wget -q -O config/includes.chroot/usr/share/backgrounds/nydra-wallpaper.jpg "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/expanse.jpg" || true
 wget -q -O config/includes.chroot/usr/share/pixmaps/nydra-logo.png "https://raw.githubusercontent.com/nydra-company/nydra-logo/refs/heads/main/Nydra-circle.png" || true
 cp config/includes.chroot/usr/share/pixmaps/nydra-logo.png config/includes.chroot/usr/share/plymouth/themes/nydra/nydra-logo.png || true
 
-# Fetch desktop themes and icon sets
-echo "[INFO] Fetching GTK theme and icon resources..."
+# Themes & Icons Setup
+echo "[INFO] Fetching GTK themes and icon packs..."
 TMP_DIR=$(mktemp -d)
 
 git clone --depth 1 https://github.com/madmaxms/theme-obsidian-2.git "$TMP_DIR/obsidian" || true
@@ -92,8 +93,149 @@ git clone --depth 1 https://github.com/numixproject/numix-icon-theme-circle.git 
 
 rm -rf "$TMP_DIR"
 
-# Configure default system theme & extensions via dconf overrides
-echo "[INFO] Applying global dconf desktop configurations..."
+# Nydra Welcome GUI Application
+echo "[INFO] Creating Nydra Welcome app..."
+cat << 'EOF' > config/includes.chroot/usr/bin/nydra-welcome
+#!/usr/bin/env python3
+import sys
+import subprocess
+import gi
+try:
+    gi.require_version('Gtk', '4.0')
+    gi.require_version('Adw', '1')
+    from gi.repository import Gtk, Adw, Gio
+except Exception:
+    sys.exit(0)
+
+class WelcomeWindow(Adw.ApplicationWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.set_default_size(680, 520)
+        self.set_title("Welcome to Nydra OS")
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        main_box.set_margin_top(24)
+        main_box.set_margin_bottom(24)
+        main_box.set_margin_start(24)
+        main_box.set_margin_end(24)
+
+        logo = Gtk.Image.new_from_file("/usr/share/pixmaps/nydra-logo.png")
+        logo.set_pixel_size(96)
+        main_box.append(logo)
+
+        title = Gtk.Label(label="Welcome to Nydra OS 1.0")
+        title.add_css_class("title-1")
+        main_box.append(title)
+
+        subtitle = Gtk.Label(label="Thank you for installing Nydra OS! Here are some quick links to help you get started.")
+        subtitle.add_css_class("body")
+        subtitle.set_wrap(True)
+        subtitle.set_justify(Gtk.Justification.CENTER)
+        main_box.append(subtitle)
+
+        grid = Gtk.Grid()
+        grid.set_column_spacing(12)
+        grid.set_row_spacing(12)
+        grid.set_halign(Gtk.Align.CENTER)
+        grid.set_margin_top(16)
+
+        btn_web = Gtk.Button(label="🌐 Visit Website")
+        btn_web.connect("clicked", lambda x: subprocess.Popen(["xdg-open", "https://nydra-company.github.io/nydra-web/"]))
+        grid.attach(btn_web, 0, 0, 1, 1)
+
+        btn_settings = Gtk.Button(label="⚙️ System Settings")
+        btn_settings.connect("clicked", lambda x: subprocess.Popen(["gnome-control-center"]))
+        grid.attach(btn_settings, 1, 0, 1, 1)
+
+        btn_software = Gtk.Button(label="📦 Software Center")
+        btn_software.connect("clicked", lambda x: subprocess.Popen(["gnome-software"]))
+        grid.attach(btn_software, 0, 1, 1, 1)
+
+        btn_term = Gtk.Button(label="💻 Open Terminal")
+        btn_term.connect("clicked", lambda x: subprocess.Popen(["kitty"]))
+        grid.attach(btn_term, 1, 1, 1, 1)
+
+        main_box.append(grid)
+
+        btn_close = Gtk.Button(label="Get Started")
+        btn_close.add_css_class("suggested-action")
+        btn_close.add_css_class("pill")
+        btn_close.set_halign(Gtk.Align.CENTER)
+        btn_close.set_margin_top(20)
+        btn_close.connect("clicked", lambda x: self.close())
+        main_box.append(btn_close)
+
+        self.set_content(main_box)
+
+class WelcomeApp(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id="org.nydra.welcome", flags=Gio.ApplicationFlags.FLAGS_NONE)
+
+    def do_activate(self):
+        win = WelcomeWindow(application=self)
+        win.present()
+
+if __name__ == "__main__":
+    app = WelcomeApp()
+    app.run(sys.argv)
+EOF
+
+chmod +x config/includes.chroot/usr/bin/nydra-welcome
+
+# Welcome Launcher File
+cat << 'EOF' > config/includes.chroot/usr/share/applications/nydra-welcome.desktop
+[Desktop Entry]
+Type=Application
+Name=Nydra Welcome
+Comment=Welcome application for new Nydra OS users
+Exec=nydra-welcome
+Icon=/usr/share/pixmaps/nydra-logo.png
+Terminal=false
+Categories=System;Utility;
+EOF
+
+# First-Boot Autostart for New Users Only
+cat << 'EOF' > config/includes.chroot/etc/skel/.config/autostart/nydra-welcome.desktop
+[Desktop Entry]
+Type=Application
+Name=Nydra Welcome
+Exec=sh -c "if [ \"$USER\" != \"Nydra\" ]; then nydra-welcome; fi"
+Icon=/usr/share/pixmaps/nydra-logo.png
+Terminal=false
+X-GNOME-Autostart-enabled=true
+EOF
+
+chmod +x config/includes.chroot/etc/skel/.config/autostart/nydra-welcome.desktop
+
+# Firefox Policies
+echo "[INFO] Setting Firefox policies..."
+cat << 'EOF' > config/includes.chroot/etc/firefox/policies/policies.json
+{
+  "policies": {
+    "Homepage": {
+      "URL": "https://duckduckgo.com/",
+      "Locked": false,
+      "StartPage": "homepage"
+    },
+    "NewTabURL": "https://duckduckgo.com/",
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "DontCheckDefaultBrowser": true,
+    "DisplayBookmarksToolbar": "never",
+    "SearchBar": "unified",
+    "EnableTrackingProtection": {
+      "Value": true,
+      "Locked": false,
+      "Cryptomining": true,
+      "Fingerprinting": true
+    }
+  }
+}
+EOF
+chmod 644 config/includes.chroot/etc/firefox/policies/policies.json
+
+# System-wide Dconf Desktop Overrides
+echo "[INFO] Applying global dconf configurations..."
 cat << 'EOF' > config/includes.chroot/etc/dconf/profile/user
 user-db:user
 system-db:local
@@ -121,8 +263,7 @@ theme='Obsidian-2-Aqua'
 enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'arcmenu@arcmenu.com', 'gsconnect@andyholmes.github.io', 'ding@rastersoft.com']
 EOF
 
-# Inject custom color schemes into GTK definitions
-echo "[INFO] Injecting custom color scheme definitions..."
+# GTK Global Dark Accents
 cat << 'EOF' | tee config/includes.chroot/etc/skel/.config/gtk-3.0/gtk.css > config/includes.chroot/etc/skel/.config/gtk-4.0/gtk.css
 @define-color theme_bg_color #3d3b3a;
 @define-color theme_fg_color #ffffff;
@@ -141,8 +282,15 @@ label, entry, textarea {
 }
 EOF
 
-# Setup Plymouth boot splash screen
-echo "[INFO] Setting up Plymouth boot splash configuration..."
+# Plymouth Configuration
+echo "[INFO] Configuring Plymouth boot theme..."
+cat << 'EOF' > config/includes.chroot/etc/plymouth/plymouthd.conf
+[Daemon]
+Theme=nydra
+ShowDelay=0
+DeviceTimeout=8
+EOF
+
 cat << 'EOF' > config/includes.chroot/usr/share/plymouth/themes/nydra/nydra.plymouth
 [Plymouth Theme]
 Name=Nydra OS Boot
@@ -164,18 +312,22 @@ Window.SetBackgroundTopColor(0.24, 0.23, 0.22);
 Window.SetBackgroundBottomColor(0.24, 0.23, 0.22);
 EOF
 
-# Configure Display Manager and Live User privileges
-echo "[INFO] Setting up auto-login and user environment..."
+# GDM3 Auto-Login Configuration
+echo "[INFO] Setting up GDM3 auto-login..."
 cat << 'EOF' > config/includes.chroot/etc/gdm3/daemon.conf
 [daemon]
-AutomaticLoginEnable=True
+AutomaticLoginEnable=true
 AutomaticLogin=Nydra
+TimedLoginEnable=true
+TimedLogin=Nydra
+TimedLoginDelay=0
 EOF
 
+# Sudo Permissions for Live User
 echo "Nydra ALL=(ALL) NOPASSWD: ALL" > config/includes.chroot/etc/sudoers.d/nydra-live
 chmod 0440 config/includes.chroot/etc/sudoers.d/nydra-live
 
-# Generate default desktop entries
+# Desktop Shortcuts
 cat << 'EOF' > config/includes.chroot/etc/skel/Desktop/install-nydra.desktop
 [Desktop Entry]
 Type=Application
@@ -195,8 +347,10 @@ URL=https://nydra-company.github.io/nydra-web/
 Icon=/usr/share/pixmaps/nydra-logo.png
 EOF
 
-# Configure Calamares installer environment & slideshow
-echo "[INFO] Configuring Calamares system installer branding..."
+chmod +x config/includes.chroot/etc/skel/Desktop/*.desktop || true
+
+# Calamares Branding & Modules Setup
+echo "[INFO] Setting up Calamares installer..."
 cat << 'EOF' > config/includes.chroot/etc/calamares/branding/nydra/branding.desc
 ---
 componentName:  nydra
@@ -247,6 +401,30 @@ Presentation {
 }
 EOF
 
+# Module 1: Calamares & Live Utilities Self-Destruction
+cat << 'EOF' > config/includes.chroot/etc/calamares/modules/packages.conf
+---
+backend: apt
+skip_if_no_change: true
+update_db: false
+
+purge:
+  - calamares
+  - calamares-settings-debian
+  - live-boot
+  - live-boot-initramfs-tools
+  - live-config
+  - live-config-systemd
+  - live-tools
+EOF
+
+# Module 2: Live User Clean Purge
+cat << 'EOF' > config/includes.chroot/etc/calamares/modules/removeuser.conf
+---
+username: Nydra
+EOF
+
+# Calamares Execution Sequence
 cat << 'EOF' > config/includes.chroot/etc/calamares/settings.conf
 ---
 modules-search: [ local ]
@@ -279,6 +457,8 @@ sequence:
   - hwclock
   - grubcfg
   - bootloader
+  - removeuser
+  - packages
   - umount
 - show:
   - finished
@@ -287,8 +467,8 @@ branding: nydra
 prompt-at-end: true
 EOF
 
-# Define target package manifests
-echo "[INFO] Generating system package manifest..."
+# Complete Package Manifest
+echo "[INFO] Creating Package Manifest..."
 cat << 'EOF' > config/package-lists/nydra.list.chroot
 # Core Desktop System
 gnome-core
@@ -302,11 +482,20 @@ gtk2-engines-pixbuf
 dconf-cli
 dconf-editor
 
-# GNOME Base Utils
+# Nydra Welcome GUI Stack
+python3
+python3-gi
+gir1.2-gtk-4.0
+gir1.2-adw-1
+gnome-software
+
+# GNOME Base Utils & Extension Support
 gnome-shell-extensions
+gnome-shell-extension-prefs
+chrome-gnome-shell
 gnome-tweaks
 
-# Live System & Installer Infrastructure
+# Live System & Installer
 calamares
 calamares-settings-debian
 qml-module-qtquick2
@@ -316,7 +505,7 @@ live-boot
 live-config
 live-config-systemd
 
-# Boot & Hardware Components
+# Bootloader & Kernel Tools
 plymouth
 plymouth-themes
 grub-common
@@ -324,7 +513,7 @@ grub-pc-bin
 grub-efi-amd64-bin
 efibootmgr
 
-# User Utilities
+# User Applications
 firefox-esr
 kitty
 nautilus
@@ -333,14 +522,14 @@ gedit
 gnome-calculator
 gnome-system-monitor
 
-# Hardware Firmwares
+# Drivers & Hardware Firmwares
 firmware-linux
 firmware-linux-nonfree
 firmware-realtek
 firmware-iwlwifi
 firmware-atheros
 
-# System Tooling & Extension Build Dependencies
+# Build Tools
 sudo
 git
 curl
@@ -353,71 +542,63 @@ gettext
 make
 meson
 ninja-build
-gettext
 sassc
 libglib2.0-dev
 EOF
 
-# System initialization hooks inside chroot
-echo "[INFO] Creating post-install chroot setup hooks..."
+# Chroot Hook (Safe Password Setup + Extension Clones & Schema Compilation)
+echo "[INFO] Registering Chroot Hook..."
 cat << 'EOF' > config/hooks/live/0090-nydra-system-setup.hook.chroot
 #!/bin/sh
 set -e
+
+# Fix Password for Live User (Username: Nydra, Password: live)
+if id "Nydra" >/dev/null 2>&1; then
+    echo "Nydra:live" | chpasswd
+else
+    useradd -m -s /bin/bash Nydra || true
+    echo "Nydra:live" | chpasswd
+fi
 
 EXT_DIR="/usr/share/gnome-shell/extensions"
 mkdir -p "$EXT_DIR"
 TMP_BUILD=$(mktemp -d)
 
-# 1. Blur My Shell
-git clone --depth 1 https://github.com/aunetx/blur-my-shell.git "$TMP_BUILD/bms" || true
-if [ -d "$TMP_BUILD/bms/blur-my-shell@aunetx" ]; then
-    cp -r "$TMP_BUILD/bms/blur-my-shell@aunetx" "$EXT_DIR/"
-fi
+clone_ext() {
+    REPO="$1"
+    TARGET_NAME="$2"
+    
+    git clone --depth 1 "$REPO" "$TMP_BUILD/repo" || return 0
+    if [ -d "$TMP_BUILD/repo/$TARGET_NAME" ]; then
+        cp -r "$TMP_BUILD/repo/$TARGET_NAME" "$EXT_DIR/"
+    elif [ -f "$TMP_BUILD/repo/metadata.json" ]; then
+        cp -r "$TMP_BUILD/repo" "$EXT_DIR/$TARGET_NAME"
+    fi
+    rm -rf "$TMP_BUILD/repo"
+}
 
-# 2. Dash to Dock
-git clone --depth 1 https://github.com/micheleg/dash-to-dock.git "$TMP_BUILD/dtd" || true
-if [ -d "$TMP_BUILD/dtd" ]; then
-    cp -r "$TMP_BUILD/dtd" "$EXT_DIR/dash-to-dock@micxgx.gmail.com"
-fi
-
-# 3. Arc Menu
-git clone --depth 1 https://gitlab.com/arcmenu/ArcMenu.git "$TMP_BUILD/arcmenu" || true
-if [ -d "$TMP_BUILD/arcmenu" ]; then
-    cp -r "$TMP_BUILD/arcmenu" "$EXT_DIR/arcmenu@arcmenu.com"
-fi
-
-# 4. GSConnect
-git clone --depth 1 https://github.com/GSConnect/gnome-shell-extension-gsconnect.git "$TMP_BUILD/gsconnect" || true
-if [ -d "$TMP_BUILD/gsconnect" ]; then
-    cp -r "$TMP_BUILD/gsconnect" "$EXT_DIR/gsconnect@andyholmes.github.io"
-fi
-
-# 5. Desktop Icons NG (DING)
-git clone --depth 1 https://gitlab.com/rastersoft/desktop-icons-ng.git "$TMP_BUILD/ding" || true
-if [ -d "$TMP_BUILD/ding/ding@rastersoft.com" ]; then
-    cp -r "$TMP_BUILD/ding/ding@rastersoft.com" "$EXT_DIR/"
-fi
+# Fetch Extensions
+clone_ext "https://github.com/aunetx/blur-my-shell.git" "blur-my-shell@aunetx"
+clone_ext "https://github.com/micheleg/dash-to-dock.git" "dash-to-dock@micxgx.gmail.com"
+clone_ext "https://gitlab.com/arcmenu/ArcMenu.git" "arcmenu@arcmenu.com"
+clone_ext "https://github.com/GSConnect/gnome-shell-extension-gsconnect.git" "gsconnect@andyholmes.github.io"
+clone_ext "https://gitlab.com/rastersoft/desktop-icons-ng.git" "ding@rastersoft.com"
 
 rm -rf "$TMP_BUILD"
 
-# Update dconf database
-dconf update || true
+# Compile schemas safely without crashing on duplicates
+for ext_schema in "$EXT_DIR"/*/schemas; do
+    if [ -d "$ext_schema" ]; then
+        cp -n "$ext_schema"/*.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+    fi
+done
 
-# Set Plymouth Theme
-plymouth-set-default-theme -R nydra || true
-
-# Compile GSettings Schemas
 glib-compile-schemas /usr/share/glib-2.0/schemas || true
-
-# Permissions fix for Desktop
-chmod +x /etc/skel/Desktop/*.desktop || true
-
+dconf update || true
 EOF
 
 chmod +x config/hooks/live/0090-nydra-system-setup.hook.chroot
 
-# Execute live image build
-echo "[INFO] All configurations successfully initialized."
-echo "[INFO] Initiating image creation process..."
-
+# Execute Build
+echo "[INFO] Running safe live-build..."
 lb build
